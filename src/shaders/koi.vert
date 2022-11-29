@@ -38,7 +38,6 @@ void main() {
 	vec4 quaternion = getRotationQuaternion(vec3(0.0, 1.0, 0.0), vec3(0.0, -1.0, 0.0));
 	transformed.xyz = applyQuaternionToVector( quaternion, transformed.xyz );
 
-
 	// rotation
 	vec3 direction = normalize(positionData.xyz - prevPositionData.xyz);
 	vec3 directionDelay = normalize(prevPositionData.xyz - prevPositionDataDelay.xyz);

@@ -5,7 +5,6 @@ import {
   Mesh,
   InstancedBufferGeometry,
   InstancedBufferAttribute,
-  PlaneBufferGeometry,
   OrthographicCamera,
   Scene,
   WebGLRenderTarget,
@@ -16,7 +15,9 @@ import {
   BufferAttribute,
   Matrix4,
   MeshBasicMaterial,
-  FloatType
+  FloatType,
+  PlaneGeometry,
+  Vector2
 } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 
@@ -32,12 +33,13 @@ import PassThroughFrag from './shaders/passThrough.frag'
 import PositionFrag from './shaders/position.frag'
 import koiVert from './shaders/koi.vert'
 import koiFrag from './shaders/koi.frag'
+
 import { isIOS, isMobile } from 'react-device-detect'
 
 // config
 const INSTANCE_COUNT = 50
 const TUBE_SEGMENTS = 10
-const SEGMENT_SCALE = 1
+// const SEGMENT_SCALE = 1
 const RADIUS_SEGMENTS = 1
 
 class ParticlesMaterial extends MeshBasicMaterial {
@@ -102,7 +104,7 @@ class KoiMaterial extends MeshBasicMaterial {
 }
 
 export default function Koi () {
-  const { gl } = useThree()
+  const { gl, mouse, size } = useThree()
 
   // load model
   const { scene } = useLoader(GLTFLoader, 'models/koi.glb')
@@ -158,7 +160,7 @@ export default function Koi () {
       vertexShader: PassThroughVert,
       fragmentShader: PassThroughFrag
     })
-    const mesh = new Mesh(new PlaneBufferGeometry(2, 2), passThroughMaterial.current)
+    const mesh = new Mesh(new PlaneGeometry(2, 2), passThroughMaterial.current)
     mesh.frustumCulled = false
     passThroughScene.current.add(mesh)
   }
@@ -214,6 +216,14 @@ export default function Koi () {
         uTubeSegments: {
           type: 'f',
           value: TUBE_SEGMENTS
+        },
+        uMousePos: {
+          type: 'v2',
+          value: null
+        },
+        uAspect: {
+          type: 'f',
+          value: null
         }
       },
       vertexShader: PassThroughVert,
@@ -235,7 +245,7 @@ export default function Koi () {
 
   function initPositionScene () {
     positionScene.current = new Scene()
-    positionMesh.current = new Mesh(new PlaneBufferGeometry(2, 2), positionMaterial.current)
+    positionMesh.current = new Mesh(new PlaneGeometry(2, 2), positionMaterial.current)
     positionMesh.current.frustumCulled = false
     positionScene.current.add(positionMesh.current)
   }
@@ -410,6 +420,9 @@ export default function Koi () {
     positionMaterial.current.uniforms.uDTime.value = delta
     positionMaterial.current.uniforms.uTime.value += delta
     positionMaterial.current.uniforms.uFrame.value = frame.current
+
+    positionMaterial.current.uniforms.uAspect.value = size.width / size.height
+    positionMaterial.current.uniforms.uMousePos.value = mouse
 
     updatePositions(state)
 

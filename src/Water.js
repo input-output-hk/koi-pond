@@ -9,16 +9,17 @@ import {
   Scene,
   WebGLRenderTarget,
   RGBAFormat,
-  Raycaster,
   Vector2,
   Vector3,
   RawShaderMaterial,
   FloatType,
   LinearFilter,
-  NoBlending,
-  Plane
+  NoBlending
 } from 'three'
 import { TextureLoader } from 'three/src/loaders/TextureLoader'
+
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
+import UnrealBloomPass from './UnrealBloomPass'
 
 /**
  * Shaders
@@ -28,10 +29,10 @@ import EmptyFrag from './shaders/empty.frag'
 import FluidFrag from './shaders/fluid.frag'
 import LightFrag from './shaders/light.frag'
 
-export default function Water () {
-  const skyTexture = useLoader(TextureLoader, 'textures/sky.jpg')
+export default function Water ({ fluidScene, quadCamera }) {
+  const skyTexture = useLoader(TextureLoader, 'textures/galaxy.jpg')
 
-  const { gl, size, mouse, scene, camera } = useThree()
+  const { gl, size, scene, camera } = useThree()
 
   const downscaleFactor = useRef(1) // 1 = no downscale
   const width = useRef(size.width * downscaleFactor.current)
@@ -42,19 +43,32 @@ export default function Water () {
   const copyMaterial = useRef()
   const fluidMaterial = useRef()
   const lightsMaterial = useRef()
-  const quadCamera = useRef()
+  // const quadCamera = useRef()
   const quadMesh = useRef()
-  const fluidScene = useRef()
-  const planeRef = useRef()
-  const aspect = useRef(1)
+  // const fluidScene = useRef()
   const mousePos = useRef(new Vector3())
   const prevMousePos = useRef(new Vector3())
   const NDCMousePos = useRef(new Vector3())
-  const raycaster = useRef(new Raycaster())
-  const intersectPlane = useRef(new Plane(new Vector3(0, 0, 1)))
   const mouseDown = useRef(false)
 
+  const composer = useRef()
+  const bloomPass = useRef()
+  const bloomWriteRT = useRef()
+
   function initRenderTargets () {
+    composer.current = new EffectComposer(gl)
+
+    // resolution, strength, radius, threshold
+    bloomPass.current = new UnrealBloomPass(new Vector2(size.width, size.height), 1.6, 1.0, 0.0)
+
+    bloomWriteRT.current = new WebGLRenderTarget(
+      width.current,
+      height.current,
+      {
+        stencilBuffer: false
+      }
+    )
+
     cameraRT.current = new WebGLRenderTarget(
       width.current,
       height.current,
@@ -94,7 +108,7 @@ export default function Water () {
       uniforms: {
         uTime: { type: 'f', value: 0.0 },
         uMousePos: { type: 'v2', value: new Vector2() },
-        uDecay: { type: 'f', value: 0.98 },
+        uDecay: { type: 'f', value: 0.985 },
         uPrevMousePos: { type: 'v2', value: new Vector2() },
         uMouseDown: { type: 'f', value: 0 },
         uViscosity: { type: 'f', value: 0.01 },
@@ -282,6 +296,8 @@ export default function Water () {
 
     gl.setRenderTarget(cameraRT.current)
     gl.render(scene, camera)
+
+    bloomPass.current.render(gl, null, cameraRT.current)
 
     quadMesh.current.material = fluidMaterial.current
     quadMesh.current.material.uniforms.uTime.value += delta * 8

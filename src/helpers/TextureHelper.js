@@ -34,7 +34,7 @@ export default class TextureHelper {
         textureArray[(ii + j) * 4 + 0] = position.x
         textureArray[(ii + j) * 4 + 1] = position.y
         textureArray[(ii + j) * 4 + 2] = position.z
-        textureArray[(ii + j) * 4 + 3] = 0
+        textureArray[(ii + j) * 4 + 3] = i === 1 ? 1 : 0
       }
 
       ii += this.textureWidth

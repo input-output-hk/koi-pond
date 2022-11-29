@@ -88,8 +88,8 @@ void main() {
     normal.z +=  distanceFromRadius;
   }
 
-  if (cameraTexture.r >= 0.93) {
-    normal.z += pow(cameraTexture.r, 1.0) * 0.05;
+  if (cameraTexture.r >= 1.0) {
+    normal.z += pow(cameraTexture.r, 1.0) * 0.01;
   }
 
   gl_FragColor = vec4( normal, velocity );

@@ -2,6 +2,10 @@ precision highp float;
 
 // #pragma glslify: dithering = require('./dithering.glsl')
 
+//#pragma glslify: blend = require(glsl-blend/average)
+//#pragma glslify: blend = require(glsl-blend/overlay)
+#pragma glslify: blend = require(glsl-blend/glow)
+
 uniform vec3 uLightPos;
 uniform vec2 uMousePos;
 uniform vec2 uResolution;
@@ -26,7 +30,8 @@ void main() {
     vec3 worldPos = fragPos * 0.01; // scale down so we don't sample texture off screen
     vec3 eyeVector = normalize(worldPos - viewPos);
 
-    vec3 refracted = refract( eyeVector, normal, 1.0/1.33 );
+    // vec3 refracted = refract( eyeVector, normal, 1.0/1.33 );
+    vec3 refracted = refract( eyeVector, normal, 1.05 );
     uv += refracted.xy;
     vec3 refractedCamera = texture2D( uCameraTexture, uv ).rgb;
 
@@ -41,7 +46,9 @@ void main() {
     diffuse = mix( diffuse, refractedCamera, 0.8 );
 
     // blend in reflection
-    diffuse = mix( diffuse, reflection, 0.09 );
+     //diffuse = mix( diffuse, reflection, 0.5 );
+    // diffuse = blend(reflection, diffuse, 0.5);
+    diffuse = blend(reflection, diffuse, 0.7);
 
     // specular highlights
     float specularBase = max(dot(normal, highlight), 0.0);

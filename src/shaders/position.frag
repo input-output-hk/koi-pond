@@ -9,6 +9,8 @@ uniform float uDTime;
 uniform float uKernelSize;
 uniform float uNoiseSpeed;
 uniform float uTubeSegments;
+uniform vec2 uMousePos;
+uniform float uAspect;
 
 void main() {
 
@@ -28,12 +30,20 @@ void main() {
 
     currentPosition.xyz -= (curlNoise(scaledPosition) * uNoiseSpeed) * (0.4);
 
+    if (defaultPosition.a == 1.0) {
+      vec2 newMouse = vec2(uMousePos.x, -uMousePos.y) * vec2(uAspect, 1.0);
+      newMouse *= 0.7;
+      vec3 toMouse = normalize(vec3(newMouse.x, 0.0, newMouse.y) - currentPosition.xyz);
+      currentPosition.xyz += toMouse * 0.002;
+    }
+
     //vec3 direction = normalize(currentPosition.xyz - prevPosition);
     // vec3 reflectionVec = reflect(direction, vec3(0.0, 1.0, 0.0));
     vec3 reflectionVec = vec3(0.0, -1.0, 0.0);
     if (currentPosition.y >= 0.0) {
       currentPosition.xyz += reflectionVec * (currentPosition.y * 0.001);
     };
+
 
     // gradually move to center
     //currentPosition.xyz *= 0.5;
