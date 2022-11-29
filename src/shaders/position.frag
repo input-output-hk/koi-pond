@@ -34,27 +34,23 @@ void main() {
       vec2 newMouse = vec2(uMousePos.x, -uMousePos.y) * vec2(uAspect, 1.0);
       newMouse *= 0.7;
       vec3 toMouse = normalize(vec3(newMouse.x, 0.0, newMouse.y) - currentPosition.xyz);
-      currentPosition.xyz += toMouse * 0.002;
+      currentPosition.xyz += toMouse * 0.0015;
     }
 
-    //vec3 direction = normalize(currentPosition.xyz - prevPosition);
-    // vec3 reflectionVec = reflect(direction, vec3(0.0, 1.0, 0.0));
     vec3 reflectionVec = vec3(0.0, -1.0, 0.0);
     if (currentPosition.y >= 0.0) {
       currentPosition.xyz += reflectionVec * (currentPosition.y * 0.001);
     };
 
-
-    // gradually move to center
-    //currentPosition.xyz *= 0.5;
-
     float distFromCenter = length(currentPosition.xyz);
-    float moveLimit = 5.0;
+    float moveLimit = 4.0;
 
     //currentPosition.a = moveLimit - distFromCenter;
 
+    // alpha channel used in koi.frag
     currentPosition.a += uDTime * 0.5;
 
+    // reset alpha when moving back to starting position
     if (distFromCenter > (moveLimit * 0.99)) {
       currentPosition.a = 0.0;
     }
