@@ -19,7 +19,6 @@ import {
   RepeatWrapping
 } from 'three'
 import { TextureLoader } from 'three/src/loaders/TextureLoader'
-
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
 import UnrealBloomPass from './UnrealBloomPass'
 
