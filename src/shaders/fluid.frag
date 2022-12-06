@@ -2,6 +2,7 @@ precision highp float;
 
 uniform vec2 uMousePos;
 uniform vec2 uPrevMousePos;
+uniform float uIsMobile;
 uniform float uMouseDown;
 uniform vec2 uResolution;
 uniform float uDownscaleFactor;
@@ -78,7 +79,12 @@ void main() {
   vec3 normal = calculateNormal( prevNormal, uv );
   normal.z += prevNormal.z + velocity;
 
-  float fragToMouse = distToSegment(uPrevMousePos.xy * uDownscaleFactor, uMousePos.xy * uDownscaleFactor, gl_FragCoord.xy);
+  float fragToMouse;
+  if (uIsMobile == 1.0) {
+    fragToMouse = distance((uMousePos.xy * uDownscaleFactor), gl_FragCoord.xy );
+  } else {
+    fragToMouse = distToSegment(uPrevMousePos.xy * uDownscaleFactor, uMousePos.xy * uDownscaleFactor, gl_FragCoord.xy);
+  }
 
   float mouseRadius = 10.0 * uMouseDown;
   float maxHeight = 1.0;

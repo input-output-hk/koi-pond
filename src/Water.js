@@ -14,12 +14,19 @@ import {
   RawShaderMaterial,
   FloatType,
   LinearFilter,
-  NoBlending
+  NoBlending,
+  DataTexture,
+  RepeatWrapping
 } from 'three'
 import { TextureLoader } from 'three/src/loaders/TextureLoader'
 
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
 import UnrealBloomPass from './UnrealBloomPass'
+
+import { isMobile } from 'react-device-detect'
+
+import random from 'random'
+import seedrandom from 'seedrandom'
 
 /**
  * Shaders
@@ -30,6 +37,8 @@ import FluidFrag from './shaders/fluid.frag'
 import LightFrag from './shaders/light.frag'
 
 export default function Water ({ fluidScene, quadCamera }) {
+  random.use(seedrandom(Date.now()))
+
   const skyTexture = useLoader(TextureLoader, 'textures/galaxy.jpg')
 
   const { gl, size, scene, camera } = useThree()
@@ -50,6 +59,9 @@ export default function Water ({ fluidScene, quadCamera }) {
   const prevMousePos = useRef(new Vector3())
   const NDCMousePos = useRef(new Vector3())
   const mouseDown = useRef(false)
+  const aspect = useRef(1)
+  const pointStarsTexture = useRef()
+  const noiseTexture = useRef()
 
   const composer = useRef()
   const bloomPass = useRef()
@@ -106,20 +118,20 @@ export default function Water ({ fluidScene, quadCamera }) {
 
     fluidMaterial.current = new RawShaderMaterial({
       uniforms: {
-        uTime: { type: 'f', value: 0.0 },
-        uMousePos: { type: 'v2', value: new Vector2() },
-        uDecay: { type: 'f', value: 0.985 },
-        uPrevMousePos: { type: 'v2', value: new Vector2() },
-        uMouseDown: { type: 'f', value: 0 },
-        uViscosity: { type: 'f', value: 0.01 },
-        uElasticity: { type: 'f', value: 0.01 },
-        uDownscaleFactor: { type: 'f', value: downscaleFactor.current },
+        uTime: { value: 0.0 },
+        uMousePos: { value: new Vector2() },
+        uDecay: { value: 0.985 },
+        uPrevMousePos: { value: new Vector2() },
+        uMouseDown: { value: 0 },
+        uViscosity: { value: 0.01 },
+        uElasticity: { value: 0.01 },
+        uDownscaleFactor: { value: downscaleFactor.current },
         uResolution: {
-          type: 'v2',
           value: new Vector2(width.current, height.current)
         },
-        uTexture: { type: 't' },
-        uCameraTexture: { type: 't' }
+        uTexture: { },
+        uCameraTexture: { },
+        uIsMobile: { }
       },
       vertexShader: PassThroughVert,
       fragmentShader: FluidFrag,
@@ -133,20 +145,33 @@ export default function Water ({ fluidScene, quadCamera }) {
 
     lightsMaterial.current = new RawShaderMaterial({
       uniforms: {
-        uTime: { type: 'f', value: 0.0 },
-        uLightPos: { type: 'v3', value: new Vector3(-4, 4, 7) },
-        uMousePos: { type: 'v2', value: new Vector2() },
-        uPrevMousePos: { type: 'v2', value: new Vector2() },
-        uMouseDown: { type: 'f', value: 0 },
-        uIridescence: { type: 'f', value: 0.1 },
-        uEnvironment: { type: 't', value: skyTexture },
-        uDownscaleFactor: { type: 'f', value: downscaleFactor.current },
+        uTime: { value: 0.0 },
+        uLightPos: { value: new Vector3(-4, 4, 7) },
+        uMousePos: { value: new Vector2() },
+        uPrevMousePos: { value: new Vector2() },
+        uMouseDown: { value: 0 },
+        uIridescence: { value: 0.1 },
+        uEnvironment: { value: skyTexture },
+        uDownscaleFactor: { value: downscaleFactor.current },
         uResolution: {
-          type: 'v2',
           value: new Vector2(width.current, height.current)
         },
-        uTexture: { type: 't' },
-        uCameraTexture: { type: 't' }
+        uTexture: { },
+        uCameraTexture: { },
+        uStarsTexture: { },
+        uNoiseTexture: { },
+        uNoiseTextureSize: { },
+        uStarPositions: {
+          value: [
+            new Vector2(Math.random(), Math.random()),
+            new Vector2(Math.random(), Math.random()),
+            new Vector2(Math.random(), Math.random()),
+            new Vector2(Math.random(), Math.random()),
+            new Vector2(Math.random(), Math.random()),
+            new Vector2(Math.random(), Math.random())
+          ]
+        }
+
       },
       vertexShader: PassThroughVert,
       fragmentShader: LightFrag,
@@ -251,6 +276,7 @@ export default function Water ({ fluidScene, quadCamera }) {
     }, false)
 
     document.addEventListener('touchcancel', (e) => {
+      mouseDown.current = false
       if (typeof e.touches[0] === 'undefined' && typeof e.changedTouches[0] === 'undefined') {
         return
       } else {
@@ -258,6 +284,56 @@ export default function Water ({ fluidScene, quadCamera }) {
       }
       setMousePos(e)
     }, false)
+  }
+
+  function generateNoiseTexture (noiseSize = 256) {
+    const l = noiseSize * noiseSize * 4
+    const data = new Float32Array(l)
+    for (let i = 0; i < l; i++) {
+      const r = new Vector2(random.float(), random.float())
+      data[i * 4 + 0] = r.x
+      data[i * 4 + 1] = r.x
+      data[i * 4 + 2] = r.x
+      data[i * 4 + 3] = r.y
+    }
+
+    noiseTexture.current = new DataTexture(
+      data,
+      noiseSize,
+      noiseSize,
+      RGBAFormat,
+      FloatType
+    )
+    // noiseTexture.current.generateMipmaps = false
+    noiseTexture.current.needsUpdate = true
+    noiseTexture.current.wrapS = RepeatWrapping
+    noiseTexture.current.wrapT = RepeatWrapping
+
+    lightsMaterial.current.uniforms.uNoiseTexture.value = noiseTexture.current
+    lightsMaterial.current.uniforms.uNoiseTextureSize.value = noiseSize
+  }
+
+  function generatePointStars (density = 0.005, brightness = 0.8) {
+    const count = Math.round(size.width * size.height * density)
+    const data = new Uint8Array(size.width * size.height * 4)
+    for (let i = 0; i < count; i++) {
+      const r = Math.floor(random.float() * size.width * size.height)
+      const c = Math.round(255 * Math.log(1 - random.float()) * -brightness)
+      data[r * 4 + 0] = c
+      data[r * 4 + 1] = c
+      data[r * 4 + 2] = c
+      data[r * 4 + 3] = 0
+    }
+
+    pointStarsTexture.current = new DataTexture(
+      data,
+      size.width,
+      size.height,
+      RGBAFormat
+    )
+    pointStarsTexture.current.needsUpdate = true
+
+    lightsMaterial.current.uniforms.uStarsTexture.value = pointStarsTexture.current
   }
 
   // resize
@@ -274,6 +350,8 @@ export default function Water ({ fluidScene, quadCamera }) {
       lightsMaterial.current.uniforms.uResolution.value = new Vector2(size.width, size.height)
     }
 
+    aspect.current = size.width / size.height
+
     // resizeDepth()
   }, [size])
 
@@ -283,6 +361,9 @@ export default function Water ({ fluidScene, quadCamera }) {
     initMaterials()
     initFluidScene()
     initMouse()
+
+    generateNoiseTexture()
+    generatePointStars()
   }, [])
 
   useFrame((state, delta) => {
@@ -316,9 +397,14 @@ export default function Water ({ fluidScene, quadCamera }) {
 
     fluidMaterial.current.uniforms.uMousePos.value = mousePos.current
     fluidMaterial.current.uniforms.uPrevMousePos.value = prevMousePos.current
+    fluidMaterial.current.uniforms.uIsMobile.value = isMobile
 
+    lightsMaterial.current.uniforms.uTime.value += delta
     lightsMaterial.current.uniforms.uMousePos.value = mousePos.current
     lightsMaterial.current.uniforms.uPrevMousePos.value = prevMousePos.current
+
+    // lightsMaterial.current.uniforms.uLightPos.value.x = mouse.x * aspect.current
+    // lightsMaterial.current.uniforms.uLightPos.value.y = mouse.y
 
     fluidMaterial.current.uniforms.uMouseDown.value = mouseDown.current
     lightsMaterial.current.uniforms.uMouseDown.value = mouseDown.current

@@ -16,8 +16,7 @@ import {
   Matrix4,
   MeshBasicMaterial,
   FloatType,
-  PlaneGeometry,
-  Vector2
+  PlaneGeometry
 } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 

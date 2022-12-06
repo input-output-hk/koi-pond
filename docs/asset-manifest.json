@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/koi-pond/static/css/main.e6c13ad2.css",
-    "main.js": "/koi-pond/static/js/main.26522cfa.js",
+    "main.js": "/koi-pond/static/js/main.3d52a025.js",
     "static/js/529.b1583099.chunk.js": "/koi-pond/static/js/529.b1583099.chunk.js",
     "index.html": "/koi-pond/index.html",
     "main.e6c13ad2.css.map": "/koi-pond/static/css/main.e6c13ad2.css.map",
-    "main.26522cfa.js.map": "/koi-pond/static/js/main.26522cfa.js.map",
+    "main.3d52a025.js.map": "/koi-pond/static/js/main.3d52a025.js.map",
     "529.b1583099.chunk.js.map": "/koi-pond/static/js/529.b1583099.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.e6c13ad2.css",
-    "static/js/main.26522cfa.js"
+    "static/js/main.3d52a025.js"
   ]
 }
