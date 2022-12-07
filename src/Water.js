@@ -194,20 +194,7 @@ export default function Water ({ fluidScene, quadCamera }) {
         uTexture: { },
         uCameraTexture: { },
         uStarsTexture: { },
-        uNebulaTexture: { },
-        uNoiseTexture: { },
-        uNoiseTextureSize: { },
-        uStarPositions: {
-          value: [
-            new Vector2(Math.random(), Math.random()),
-            new Vector2(Math.random(), Math.random()),
-            new Vector2(Math.random(), Math.random()),
-            new Vector2(Math.random(), Math.random()),
-            new Vector2(Math.random(), Math.random()),
-            new Vector2(Math.random(), Math.random())
-          ]
-        }
-
+        uNebulaTexture: { }
       },
       vertexShader: PassThroughVert,
       fragmentShader: LightFrag,
@@ -345,9 +332,6 @@ export default function Water ({ fluidScene, quadCamera }) {
     noiseTexture.current.wrapS = RepeatWrapping
     noiseTexture.current.wrapT = RepeatWrapping
 
-    lightsMaterial.current.uniforms.uNoiseTexture.value = noiseTexture.current
-    lightsMaterial.current.uniforms.uNoiseTextureSize.value = noiseSize
-
     nebulaMaterial.current.uniforms.uNoiseTexture.value = noiseTexture.current
     nebulaMaterial.current.uniforms.uNoiseTextureSize.value = noiseSize
   }
@@ -376,6 +360,7 @@ export default function Water ({ fluidScene, quadCamera }) {
   }
 
   function renderNebula () {
+    console.log('nebula')
     quadMesh.current.material = nebulaMaterial.current
 
     gl.setRenderTarget(nebulaRT.current)
