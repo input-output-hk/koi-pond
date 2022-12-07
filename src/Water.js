@@ -21,6 +21,7 @@ import {
 import { TextureLoader } from 'three/src/loaders/TextureLoader'
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
 import UnrealBloomPass from './UnrealBloomPass'
+import { useDetectGPU } from '@react-three/drei'
 
 import { isMobile } from 'react-device-detect'
 
@@ -33,6 +34,7 @@ import seedrandom from 'seedrandom'
 import PassThroughVert from './shaders/passThroughRaw.vert'
 import EmptyFrag from './shaders/empty.frag'
 import FluidFrag from './shaders/fluid.frag'
+import NebulaFrag from './shaders/nebula.frag'
 import LightFrag from './shaders/light.frag'
 
 export default function Water ({ fluidScene, quadCamera }) {
@@ -42,14 +44,18 @@ export default function Water ({ fluidScene, quadCamera }) {
 
   const { gl, size, scene, camera } = useThree()
 
+  const GPUTier = useDetectGPU()
+
   const downscaleFactor = useRef(1) // 1 = no downscale
   const width = useRef(size.width * downscaleFactor.current)
   const height = useRef(size.height * downscaleFactor.current)
   const cameraRT = useRef()
   const rt1 = useRef()
   const rt2 = useRef()
+  const nebulaRT = useRef()
   const copyMaterial = useRef()
   const fluidMaterial = useRef()
+  const nebulaMaterial = useRef()
   const lightsMaterial = useRef()
   // const quadCamera = useRef()
   const quadMesh = useRef()
@@ -101,6 +107,8 @@ export default function Water ({ fluidScene, quadCamera }) {
       }
     )
     rt2.current = rt1.current.clone()
+
+    nebulaRT.current = rt1.current.clone()
   }
 
   function initMaterials () {
@@ -142,6 +150,34 @@ export default function Water ({ fluidScene, quadCamera }) {
       depthTest: false
     })
 
+    nebulaMaterial.current = new RawShaderMaterial({
+      uniforms: {
+        uNoiseTexture: {},
+        uResolution: {
+          value: new Vector2(width.current, height.current)
+        },
+        uNoiseTextureSize: { },
+        uStarPositions: {
+          value: [
+            new Vector2(Math.random(), Math.random()),
+            new Vector2(Math.random(), Math.random()),
+            new Vector2(Math.random(), Math.random()),
+            new Vector2(Math.random(), Math.random()),
+            new Vector2(Math.random(), Math.random()),
+            new Vector2(Math.random(), Math.random())
+          ]
+        }
+      },
+      vertexShader: PassThroughVert,
+      fragmentShader: NebulaFrag,
+      blending: NoBlending,
+      transparent: false,
+      fog: false,
+      lights: false,
+      depthWrite: false,
+      depthTest: false
+    })
+
     lightsMaterial.current = new RawShaderMaterial({
       uniforms: {
         uTime: { value: 0.0 },
@@ -158,6 +194,7 @@ export default function Water ({ fluidScene, quadCamera }) {
         uTexture: { },
         uCameraTexture: { },
         uStarsTexture: { },
+        uNebulaTexture: { },
         uNoiseTexture: { },
         uNoiseTextureSize: { },
         uStarPositions: {
@@ -310,6 +347,9 @@ export default function Water ({ fluidScene, quadCamera }) {
 
     lightsMaterial.current.uniforms.uNoiseTexture.value = noiseTexture.current
     lightsMaterial.current.uniforms.uNoiseTextureSize.value = noiseSize
+
+    nebulaMaterial.current.uniforms.uNoiseTexture.value = noiseTexture.current
+    nebulaMaterial.current.uniforms.uNoiseTextureSize.value = noiseSize
   }
 
   function generatePointStars (density = 0.005, brightness = 0.8) {
@@ -335,6 +375,15 @@ export default function Water ({ fluidScene, quadCamera }) {
     lightsMaterial.current.uniforms.uStarsTexture.value = pointStarsTexture.current
   }
 
+  function renderNebula () {
+    quadMesh.current.material = nebulaMaterial.current
+
+    gl.setRenderTarget(nebulaRT.current)
+    gl.render(fluidScene.current, quadCamera.current)
+
+    lightsMaterial.current.uniforms.uNebulaTexture.value = nebulaRT.current.texture
+  }
+
   // resize
   useEffect(() => {
     if (cameraRT.current) {
@@ -344,12 +393,16 @@ export default function Water ({ fluidScene, quadCamera }) {
       cameraRT.current.setSize(size.width, size.height)
       rt1.current.setSize(size.width, size.height)
       rt2.current.setSize(size.width, size.height)
+      nebulaRT.current.setSize(size.width, size.height)
 
+      nebulaMaterial.current.uniforms.uResolution.value = new Vector2(size.width, size.height)
       fluidMaterial.current.uniforms.uResolution.value = new Vector2(size.width, size.height)
       lightsMaterial.current.uniforms.uResolution.value = new Vector2(size.width, size.height)
-    }
 
-    aspect.current = size.width / size.height
+      renderNebula()
+
+      aspect.current = size.width / size.height
+    }
 
     // resizeDepth()
   }, [size])
@@ -363,6 +416,7 @@ export default function Water ({ fluidScene, quadCamera }) {
 
     generateNoiseTexture()
     generatePointStars()
+    renderNebula()
   }, [])
 
   useFrame((state, delta) => {
@@ -377,7 +431,9 @@ export default function Water ({ fluidScene, quadCamera }) {
     gl.setRenderTarget(cameraRT.current)
     gl.render(scene, camera)
 
-    bloomPass.current.render(gl, null, cameraRT.current)
+    if (GPUTier.tier > 1) {
+      bloomPass.current.render(gl, null, cameraRT.current)
+    }
 
     quadMesh.current.material = fluidMaterial.current
     quadMesh.current.material.uniforms.uTime.value += delta * 8
