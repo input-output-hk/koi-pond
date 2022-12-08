@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber'
 
 import Water from './Water'
 import Koi from './Koi'
+import { NoToneMapping } from 'three'
 function App () {
   const fluidScene = useRef()
   const quadCamera = useRef()
@@ -10,9 +11,8 @@ function App () {
   return (
     <>
       <Canvas
-        // onCreated={({ gl }) => { gl.toneMapping = NoToneMapping }}
-        // linear
-            // gl={canvas => new WebGL1Renderer({ canvas })}
+        onCreated={({ gl }) => { gl.toneMapping = NoToneMapping }}
+        linear
         gl={{ antialias: false }}
         style={{ position: 'fixed', left: 0, top: 0 }}
         dpr={[1, 1]}
@@ -20,7 +20,6 @@ function App () {
       >
         <Suspense fallback={null}>
           <color attach='background' args={[0x000000]} />
-          {/* <ambientLight intensity={1.671} color={0xffffff} /> */}
           <Koi />
           <Water fluidScene={fluidScene} quadCamera={quadCamera} />
         </Suspense>

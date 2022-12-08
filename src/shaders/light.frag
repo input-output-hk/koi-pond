@@ -1,6 +1,7 @@
 precision highp float;
 
-// #pragma glslify: dithering = require('./dithering.glsl')
+#pragma glslify: dithering = require('./dithering.glsl')
+#pragma glslify: rand = require('./rand.glsl')
 
 #pragma glslify: blend_average = require(glsl-blend/average)
 //#pragma glslify: blend = require(glsl-blend/overlay)
@@ -18,10 +19,6 @@ uniform sampler2D uStarsTexture;
 uniform sampler2D uNebulaTexture;
 uniform float uTime;
 
-float random (vec2 st) {
-    return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
-}
-
 void main() {
 
     vec2 uv = gl_FragCoord.xy / uResolution.xy;
@@ -31,11 +28,11 @@ void main() {
     vec3 reflectRay = reflect(vec3(uv, 1.0), normal);
     //vec3 reflection = texture2D(uEnvironment, reflectRay.xy).rgb;
     vec3 stars = texture2D(uStarsTexture, reflectRay.xy / 2.0).rgb;
-    stars *= (sin((uTime*10.0) * random(uv)) + 1.0) / 2.0;
+    stars *= (sin((uTime*10.0) * rand(uv)) + 1.0) / 2.0;
     vec3 reflection = stars;
 
     vec3 stars2 = texture2D(uStarsTexture, reflectRay.xy).rgb;
-    stars2 *= (sin((uTime*10.0) * random(uv)) + 1.0) / 2.0;
+    stars2 *= (sin((uTime*10.0) * rand(uv)) + 1.0) / 2.0;
     reflection += stars2;
 
     vec3 nebula = texture2D(uNebulaTexture, reflectRay.xy).rgb;
@@ -79,7 +76,7 @@ void main() {
     // modNormal *= normalHighlight * 1.0;
     // col = mix(col, modNormal, 0.2);
 
-    // gl_FragColor = vec4( dithering(col), 1.0 );
-    gl_FragColor = vec4( col, 1.0 );
+    gl_FragColor = vec4( dithering(col), 1.0 );
+    // gl_FragColor = vec4( col, 1.0 );
 
 }

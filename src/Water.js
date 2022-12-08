@@ -360,7 +360,6 @@ export default function Water ({ fluidScene, quadCamera }) {
   }
 
   function renderNebula () {
-    console.log('nebula')
     quadMesh.current.material = nebulaMaterial.current
 
     gl.setRenderTarget(nebulaRT.current)

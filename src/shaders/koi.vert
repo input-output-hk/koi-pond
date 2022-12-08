@@ -4,17 +4,35 @@
 uniform float uTubeSegments;
 uniform sampler2D positionTexture;
 uniform sampler2D prevPositionTexture;
+uniform float uTime;
 
+attribute float id;
+attribute vec3 pickerColor;
 attribute float positionUVS;
 attribute float positionUVT;
+attribute float isHovered;
 
 varying vec4 vColor;
 varying vec3 vTransformed;
+varying vec3 vPickerColor;
 varying float vPositionUVT;
+varying float vIsHovered;
+varying float vHoverTime;
+varying vec3 vDiffuse;
 varying float fogDepth;
 
 void main() {
 
+	vIsHovered = isHovered;
+	vDiffuse = vec3(1.0);
+	if (isHovered == 1.0) {
+		vHoverTime = sin(uTime * 0.1);
+		if (id == 1.0) {
+			vDiffuse = vec3(0.0, 1.0, 0.0);
+		}
+	}
+
+	vPickerColor = pickerColor;
 	vPositionUVT = positionUVT;
 
 	float UVDiv = 1.0 / uTubeSegments;

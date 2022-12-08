@@ -1,19 +1,24 @@
 #pragma glslify: snoise = require(glsl-noise/classic/3d)
 
 uniform float opacity;
+uniform float uTime;
 
 varying vec4 vColor;
+varying vec3 vDiffuse;
 varying vec3 vTransformed;
 varying float vPositionUVT;
+varying float vIsHovered;
 varying float fogDepth;
+varying float vHoverTime;
 
 void main() {
 
-	vec3 diffuse = vec3(1.0);
-	// vec3 koiColor = vec3(255.0/255.0, 96.0/255.0, 38.0/255.0);
-	vec3 koiColor = vec3(255.0/255.0, 0.0, 0.0);
+	vec3 diffuse = vDiffuse;
+	vec3 koiColor = vec3(1.0, 0.0, 0.0);
 	vec3 noisePos = vTransformed;
 	noisePos.x += vPositionUVT;
+	noisePos.x += vHoverTime;
+		
 	noisePos *= 16.0;
 	float noise = smoothstep(snoise(noisePos), 0.0, 1.0);
 

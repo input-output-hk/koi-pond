@@ -16,10 +16,6 @@ uniform float uNoiseTextureSize;
 uniform float uTime;
 uniform vec2 uStarPositions[6];
 
-float random (vec2 st) {
-    return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
-}
-
 float smootherstep(float a, float b, float r) {
     r = clamp(r, 0.0, 1.0);
     r = r * r * r * (r * (6.0 * r - 15.0) + 10.0);

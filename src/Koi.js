@@ -16,9 +16,14 @@ import {
   Matrix4,
   MeshBasicMaterial,
   FloatType,
-  PlaneGeometry
+  PlaneGeometry,
+  Color,
+  InstancedMesh,
+  NearestFilter,
+  sRGBEncoding
 } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
+import { isIOS, isMobile } from 'react-device-detect'
 
 // helpers
 import TextureHelper from './helpers/TextureHelper'
@@ -32,8 +37,7 @@ import PassThroughFrag from './shaders/passThrough.frag'
 import PositionFrag from './shaders/position.frag'
 import koiVert from './shaders/koi.vert'
 import koiFrag from './shaders/koi.frag'
-
-import { isIOS, isMobile } from 'react-device-detect'
+import koiPickerFrag from './shaders/koiPick.frag'
 
 // config
 const INSTANCE_COUNT = 50
@@ -97,13 +101,25 @@ class KoiMaterial extends MeshBasicMaterial {
       value: null
     }
 
+    this.uniforms.uTime = {
+      type: 'f',
+      value: null
+    }
+
     this.vertexShader = koiVert
     this.fragmentShader = koiFrag
   }
 }
 
+class KoiMaterialPicker extends KoiMaterial {
+  constructor (config) {
+    super(config)
+    this.fragmentShader = koiPickerFrag
+  }
+}
+
 export default function Koi () {
-  const { gl, mouse, size } = useThree()
+  const { gl, mouse, size, camera } = useThree()
 
   // load model
   const { scene } = useLoader(GLTFLoader, 'models/koi.glb')
@@ -119,6 +135,7 @@ export default function Koi () {
   const tubeGeometry = useRef()
   const tubeMaterial = useRef()
   const koiMaterial = useRef()
+  const koiMaterialPicker = useRef()
   const quadCamera = useRef()
   const passThroughScene = useRef()
   const passThroughMaterial = useRef()
@@ -131,6 +148,10 @@ export default function Koi () {
   const positionScene = useRef()
   const positionMesh = useRef()
   const koiMesh = useRef()
+  const koiMeshPicker = useRef()
+  const pickingScene = useRef()
+  const pickingTexture = useRef()
+  const lastHoveredID = useRef(-1)
 
   function initMaterials () {
     tubeMaterial.current = new ParticlesMaterial({
@@ -140,6 +161,7 @@ export default function Koi () {
     })
 
     koiMaterial.current = new KoiMaterial()
+    koiMaterialPicker.current = new KoiMaterialPicker()
   }
 
   function initCamera () {
@@ -259,12 +281,14 @@ export default function Koi () {
     }
     positionMaterial.current.uniforms.positionTexture.value = inputPositionRenderTarget.texture
     koiMaterial.current.uniforms.prevPositionTexture.value = inputPositionRenderTarget.texture
+    koiMaterialPicker.current.uniforms.prevPositionTexture.value = inputPositionRenderTarget.texture
     tubeMaterial.current.uniforms.prevPositionTexture.value = inputPositionRenderTarget.texture
 
     gl.setRenderTarget(outputPositionRenderTarget.current)
     gl.render(positionScene.current, quadCamera.current)
 
     koiMaterial.current.uniforms.positionTexture.value = outputPositionRenderTarget.current.texture
+    koiMaterialPicker.current.uniforms.positionTexture.value = outputPositionRenderTarget.current.texture
     tubeMaterial.current.uniforms.positionTexture.value = outputPositionRenderTarget.current.texture
   }
 
@@ -396,22 +420,106 @@ export default function Koi () {
     mesh.geometry.setAttribute('positionUVS', new BufferAttribute(positionTrackUVS, 1))
     mesh.geometry.setAttribute('positionUVT', tubeGeometry.current.attributes.positionUVT)
 
+    const isHovered = new InstancedBufferAttribute(new Float32Array(INSTANCE_COUNT), 1)
+    mesh.geometry.setAttribute('isHovered', isHovered)
+
     koiMaterial.current.transparent = true
     koiMaterial.current.uniforms.uTubeSegments.value = TUBE_SEGMENTS
 
     koiMesh.current.geometry = mesh.geometry
     koiMesh.current.material = koiMaterial.current
-
     koiMesh.current.frustumCulled = false
-
     const matrix = new Matrix4()
     for (let index = 0; index < INSTANCE_COUNT; index++) {
       koiMesh.current.setMatrixAt(index, matrix)
     }
-
     koiMesh.current.rotateX(Math.PI / 2)
     koiMesh.current.translateY(-1.1)
+
+    initPicker(mesh.geometry)
   }, [scene])
+
+  function initPicker (geometry) {
+    pickingScene.current = new Scene()
+    pickingTexture.current = new WebGLRenderTarget(size.width, size.height, {
+      minFilter: NearestFilter,
+      magFilter: NearestFilter,
+      format: RGBAFormat,
+      // type: FloatType,
+      depthBuffer: false,
+      stencilBuffer: false,
+      encoding: sRGBEncoding
+    })
+    pickingTexture.current.texture.minFilter = LinearFilter
+    pickingTexture.current.texture.generateMipmaps = false
+
+    const idArray = new Float32Array(INSTANCE_COUNT)
+    const idAttr = new InstancedBufferAttribute(idArray, 1)
+
+    const pickerColorArray = new Float32Array(INSTANCE_COUNT * 3)
+    const pickingColors = new InstancedBufferAttribute(pickerColorArray, 3)
+
+    const pickColor = new Color()
+    for (let i = 0; i < INSTANCE_COUNT; i++) {
+      pickColor.setHex(i + 1)
+      pickingColors.array[i * 3 + 0] = pickColor.r
+      pickingColors.array[i * 3 + 1] = pickColor.g
+      pickingColors.array[i * 3 + 2] = pickColor.b
+
+      idArray[i] = i
+    }
+
+    koiMeshPicker.current = new InstancedMesh(null, null, INSTANCE_COUNT)
+    koiMeshPicker.current.geometry = geometry
+    koiMeshPicker.current.geometry.setAttribute('pickerColor', pickingColors)
+
+    koiMeshPicker.current.geometry.setAttribute('id', idAttr)
+
+    koiMaterialPicker.current.transparent = false
+    koiMaterialPicker.current.uniforms.uTubeSegments.value = TUBE_SEGMENTS
+
+    koiMeshPicker.current.material = koiMaterialPicker.current
+    koiMeshPicker.current.frustumCulled = false
+
+    const matrix = new Matrix4()
+    for (let index = 0; index < INSTANCE_COUNT; index++) {
+      koiMeshPicker.current.setMatrixAt(index, matrix)
+    }
+    koiMeshPicker.current.rotateX(Math.PI / 2)
+    koiMeshPicker.current.translateY(-1.1)
+
+    pickingScene.current.add(koiMeshPicker.current)
+  }
+
+  function updatePicker () {
+    gl.setRenderTarget(pickingTexture.current)
+    gl.render(pickingScene.current, camera)
+
+    const pixelBuffer = new Uint8Array(4)
+    gl.readRenderTargetPixels(
+      pickingTexture.current,
+      ((mouse.x + 1) / 2) * size.width,
+      (((mouse.y + 1) / 2) * size.height),
+      1,
+      1,
+      pixelBuffer
+    )
+    const id = (pixelBuffer[0] << 16) | (pixelBuffer[1] << 8) | (pixelBuffer[2] - 1)
+    if (lastHoveredID.current !== id) {
+      lastHoveredID.current = id
+      // update isHovered attribute
+      const hoveredArray = new Float32Array(INSTANCE_COUNT)
+      if (id !== -1) {
+        hoveredArray[id] = 1.0
+      }
+      koiMesh.current.geometry.attributes.isHovered.array = hoveredArray
+      koiMesh.current.geometry.attributes.isHovered.needsUpdate = true
+    }
+  }
+
+  useEffect(() => {
+    pickingTexture.current.setSize(size.width, size.height)
+  }, [size])
 
   useFrame((state, delta) => {
     frame.current++
@@ -423,9 +531,13 @@ export default function Koi () {
     positionMaterial.current.uniforms.uAspect.value = size.width / size.height
     positionMaterial.current.uniforms.uMousePos.value = mouse
 
-    updatePositions(state)
+    koiMaterial.current.uniforms.uTime.value += delta
+
+    updatePositions()
+    updatePicker(state)
 
     // gl.setRenderTarget(null)
+  // })
   }, 1)
 
   return (
